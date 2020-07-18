@@ -1,3 +1,4 @@
+// Test
 const getPackages = require("zero-dep-tree-js").getPackages;
 const fs = require("fs");
 const { runYarn } = require("../utils/yarn");
@@ -84,6 +85,13 @@ async function getFiles(baseSrc) {
   });
 }
 
+const pkgListed = (pkg, dep) => {
+  return (
+    (pkg && pkg.dependencies && pkg.dependencies[dep]) ||
+    (pkg && pkg.devDependencies && pkg.devDependencies[dep])
+  );
+};
+
 function installPackages(buildPath, filterFiles) {
   return new Promise(async (resolve, reject) => {
     var files = await getFiles(buildPath);
@@ -154,13 +162,13 @@ function installPackages(buildPath, filterFiles) {
         var pkg = require(pkgjsonPath);
         allInstalled = true; // we assume all is installed
         deps.forEach(dep => {
-          if (!pkg || !pkg.dependencies || !pkg.dependencies[dep]) {
+          if (!pkgListed (pkg, dep)) {
             allInstalled = false; //didn't find this dep in there.
           }
         });
 
         Object.keys(commonDepsNeeded).forEach(dep => {
-          if (!pkg || !pkg.dependencies || !pkg.dependencies[dep]) {
+          if (!pkgListed (pkg, dep)) {
             allInstalled = false; //didn't find this dep in there.
           }
         });
@@ -215,7 +223,7 @@ async function writePackageJSON(buildPath, deps, commonDepsNeeded) {
   // the combined object of packages needed by zero and all builders being used.
   if (pkg.dependencies) {
     Object.keys(commonDepsNeeded).forEach(key => {
-      pkg.dependencies[key] = commonDepsNeeded[key];
+      pkg.devDependencies[key] = commonDepsNeeded[key];
     });
   } else {
     pkg.dependencies = commonDepsNeeded;
@@ -224,7 +232,7 @@ async function writePackageJSON(buildPath, deps, commonDepsNeeded) {
   // append user's imported packages (only if not already defined in package.json)
   for (var i in deps) {
     const dep = deps[i];
-    if (!pkg.dependencies[dep]) {
+    if (!pkg.dependencies[dep] && !pkg.devDependencies[dep]) {
       newDepsFound = true;
       pkg.dependencies[dep] = await getNPMVersion(dep);
     }
